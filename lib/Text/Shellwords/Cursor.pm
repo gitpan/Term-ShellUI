@@ -1,6 +1,7 @@
 # Text::Shellwords::Cursor.pm
 # Scott Bronson
 # 27 Jan 2003
+# Covered by the MIT license.
 
 package Text::Shellwords::Cursor;
 
@@ -165,7 +166,7 @@ sub parsel
     /^/gc;  # force scanning to the beginning of the line
 
     do {
-        $deb && print "-- top, pos=" . pos() . 
+        $deb && print "-- top, pos=" . pos() .
             ($usingcp ? " cursorpos=$cursorpos" : "") . "\n";
 
         # trim whitespace from the beginning
@@ -216,7 +217,7 @@ sub parsel
                     if($usingcp && pos() == $cursorpos) { $adjust -= 1; }   # make cursor think cq was there
                 }
                 $deb && print "  quoted string is \"$s\"\n";
-                while($s =~ /\\./g) { 
+                while($s =~ /\\./g) {
                     my $ps = pos($s) - 2;   # points to the start of the sub
                     $deb && print "  doing substr at $ps on '$s'  oldpos=$oldpos adjust=$adjust\n";
                     $adjust += 1 if $usingcp && $ps < $cursorpos - $oldpos - $adjust;
@@ -237,7 +238,7 @@ sub parsel
                     if($usingcp && pos() == $cursorpos) { $adjust -= 1; }   # make cursor think cq was there
                 }
                 $deb && print "  quoted string is '$s'\n";
-                while($s =~ /\\[\\']/g) { 
+                while($s =~ /\\[\\']/g) {
                     my $ps = pos($s) - 2;   # points to the start of the sub
                     $deb && print "  doing substr at $ps on '$s'  oldpos=$oldpos adjust=$adjust\n";
                     $adjust += 1 if $usingcp && $ps < $cursorpos - $oldpos - $adjust;
@@ -276,7 +277,7 @@ sub parsel
             my $adjust = 0; # keeps track of tokoff bumps due to subs, etc.
 
             $deb && print "Found unquoted string '$s'\n";
-            while($s =~ /\\./g) { 
+            while($s =~ /\\./g) {
                 my $ps = pos($s) - 2;   # points to the start of substitution
                 $deb && print "  doing substr at $ps on '$s'  oldpos=$oldpos adjust=$adjust\n";
                 $adjust += 1 if $usingcp && $ps < $cursorpos - $oldpos - $adjust;
@@ -310,7 +311,7 @@ sub parsel
         }
     } until(pos() >= length($_));
 
-    $deb && print "Result: (", join(", ", @pieces), ") " . 
+    $deb && print "Result: (", join(", ", @pieces), ") " .
         (defined($tokno) ? $tokno : 'undef') . " " .
         (defined($tokoff) ? $tokoff : 'undef') . "\n";
 
@@ -526,9 +527,9 @@ None known.
 
 =head1 LICENSE
 
-Copyright (c) 2003 Scott Bronson, all rights reserved. 
-This program is free software; you can redistribute it and/or modify 
-it under the same terms as Perl itself.  
+Copyright (c) 2003 Scott Bronson, all rights reserved.
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
 =head1 AUTHOR
 

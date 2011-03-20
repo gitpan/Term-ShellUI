@@ -1,6 +1,7 @@
 # Term::ShellUI.pm
 # Scott Bronson
 # 3 Nov 2003
+# Covered by the MIT license.
 
 # Makes it very easy to implement a GDB-like interface.
 
@@ -12,7 +13,7 @@ use Term::ReadLine ();
 use Text::Shellwords::Cursor;
 
 use vars qw($VERSION);
-$VERSION = '0.86';
+$VERSION = '0.9';
 
 
 =head1 NAME
@@ -29,7 +30,7 @@ Term::ShellUI - A fully-featured shell-like command line environment
                   maxargs => 1, args => sub { shift->complete_onlydirs(@_); },
                   proc => sub { chdir($_[0] || $ENV{HOME} || $ENV{LOGDIR}); },
               },
-			  "chdir" => { alias => 'cd' },
+              "chdir" => { alias => 'cd' },
               "pwd" => {
                   desc => "Print the current working directory",
                   maxargs => 0, proc => sub { system('pwd'); },
@@ -73,7 +74,7 @@ With no arguments, prints a list and short summary of all available commands.
 This is just a synonym for "help".  We don't want to list it in the
 possible completions.
 Of course, pressing "h<tab><return>" will autocomplete to "help" and
-then execute the help command.  Including this command allows you to 
+then execute the help command.  Including this command allows you to
 simply type "h<return>".
 
 The 'alias' directive used to be called 'syn' (for synonym).
@@ -160,7 +161,7 @@ directory.
              maxargs => 0,
              method => sub { shift->exit_requested(1); }
          },
-		 "q" => { alias => 'quit', exclude_from_completion => 1 },
+         "q" => { alias => 'quit', exclude_from_completion => 1 },
      };
  }
 
@@ -193,7 +194,7 @@ it will be called to calculate the documentation.
 Your subroutine should accept three arguments: self (the Term::ShellUI object),
 cmd (the command hash for the command), and the command's name.
 It should return a string containing the command's documentation.
-See examples/xmlexer to see how to read the doc 
+See examples/xmlexer to see how to read the doc
 for a command out of the pod.
 
 =item minargs
@@ -247,7 +248,7 @@ It does not affect completion at all.
 =item cmds
 
 Command sets can be recursive.  This allows a command to have
-subcommands (like GDB's info and show commands, and the 
+subcommands (like GDB's info and show commands, and the
 show command in the example above).
 A command that has subcommands should only have two fields:
 cmds (of course), and desc (briefly describe this collection of subcommands).
@@ -475,7 +476,7 @@ sub complete_onlyfiles
 
 Like L</complete_files">,
 but excludes files, device nodes, etc.
-It returns only directories.  
+It returns only directories.
 It I<does> return the . and .. special directories so you'll need
 to remove those manually if you don't want to see them:
 
@@ -489,78 +490,6 @@ sub complete_onlydirs
     my @c = grep { -d } @{$self->complete_files(@_)};
     $c[0] .= '/' if @c == 1;    # add a slash if it's a unique match
     return \@c;
-}
-
-
-=item complete_history
-
-Believe it or not, ShellUI provides tab completion on command history.
-To use this feature, specify the complete_history routine in
-your default command handler.  Because the default command handler
-is run any time you enter an unrecognized command, it will be
-called to perform completion (unless you actually do have commands
-that begin with a bang).
-
-Here's an example of how you would add history completion to
-your command set:
-
-  my $cset = {
-     "" => { args => sub { shift->complete_history(@_) } },
-     # ... more commands go here
-  };
-
-To watch this in action, run your app, type a bang and then a tab ("!<tab>").
-
-There is one catch: if you start using completion, be sure to enter the ENTIRE
-command.  If you enter a partial command, Readline will unfortunately stop
-looking for the match after just the first word (usually the command
-name).  This means that if you want to run "!abc def ghi", Readline will
-execute the first command that begins with "abc", even though you
-may have specified another command.
-Entering the entire command works around this
-limitation.  (If Readline properly supported
-$term->Attribs->{history_word_delimiters}='\n',
-this limitation would go away).
-
-=cut
-
-sub complete_history
-{
-    my $self = shift;
-    my $cmpl = shift;
-
-    return undef if $self->{disable_history_expansion};
-
-    # it's not a history command unless it starts with a bang.
-    #return undef unless $cmpl->{tokno} < @{$cmpl->{cname}};
-    return undef unless substr($cmpl->{tokens}->[0], 0, 1) eq '!';
-
-    return undef unless $self->{term}->can('GetHistory');
-    my @history = $self->{term}->GetHistory();
-    return [] unless(@history);
-    
-    my %seen = ();  # uniq history
-    @history = grep { !$seen{$_}++ } @history;
-
-    # remove items that start with the wrong text
-    my $str = substr($cmpl->{rawline}, 1, $cmpl->{rawcursor}-1);
-    my $strlen = length($str);
-    @history = grep { substr($_,0,$strlen) eq $str } @history;
-
-    # trim all tokens except for the one we're trying to complete
-    # (no need to do this for the first token -- just the rest)
-    if($cmpl->{tokno} > 0) {
-        my $rawstart = $cmpl->{rawstart} - 1;   # no bang so -1
-        @history = map { substr($_, $rawstart) } @history;
-    }
-
-    # put a bang on the front if it's the first token
-    @history = map { "!$_" } @history if $cmpl->{tokno} == 0;
-
-    # otherwise the commands would be modified
-    $self->suppress_completion_escape();
-
-    return \@history;
 }
 
 
@@ -703,13 +632,6 @@ makes no attemt to cull history so you're at the mercy
 of the default of whatever ReadLine library you are using.
 See L<Term::ReadLine::Gnu/StifleHistory> for one way to change this.
 
-=item disable_history_expansion
-
-Term::ShellUI supports the incredibly complex readline4 history expansion
-(!! repeats last command, !$ is the last arg, etc).
-It's turned on by default because it can be very useful.
-If you want to disable it, pass C<disable_history_expansion=E<gt>1>.
-
 =item keep_quotes
 
 Normally all unescaped, unnecessary quote marks are stripped.
@@ -723,8 +645,8 @@ Normally commands don't respect backslash continuation.  If you
 pass backslash_continues_command=>1 to L</new>, then whenever a line
 ends with a backslash, Term::ShellUI will continue reading.  The backslash
 is replaced with a space, so
-	$ abc \
-	> def
+    $ abc \
+    > def
 
 Will produce the command string 'abc  def'.
 
@@ -751,14 +673,14 @@ and the second item is the prompt when the command is being continued.
 For instance, this would emulate Bash's behavior ($ is the normal
 prompt, but > is the prompt when continuing).
 
-	$term->prompt(['$', '>']);
+    $term->prompt(['$', '>']);
 
 Of course, you specify backslash_continues_command=>1 to to L</new> to cause
 commands to continue.
 
 And, of course, you can use an array of procs too.
 
-	$term->prompt([sub {'$'}, sub {'<'}]);
+    $term->prompt([sub {'$'}, sub {'<'}]);
 
 =item token_chars
 
@@ -769,9 +691,6 @@ Without token_chars, 'ab=123' remains a single string.
 
 NOTE: you cannot change token_chars after the constructor has been
 called!  The regexps that use it are compiled once (m//o).
-Also, until the Gnu Readline library can accept "=[]," without
-diving into an endless loop, we will not tell history expansion
-to use token_chars (it uses " \t\n()<>;&|" by default).
 
 =item display_summary_in_help
 
@@ -793,13 +712,12 @@ sub new
         prompt => "$0> ",
         commands => undef,
         blank_repeats_cmd => 0,
-		backslash_continues_command => 0,
+        backslash_continues_command => 0,
         history_file => undef,
         history_max => 500,
         token_chars => '',
         keep_quotes => 0,
         debug_complete => 0,
-        disable_history_expansion => 0,
         display_summary_in_help => 1,
         @_
     );
@@ -839,6 +757,8 @@ sub new
     $self->{OUT} = $self->{term}->OUT || \*STDOUT;
     $self->{prevcmd} = "";  # cmd to run again if user hits return
 
+    @{$self->{eof_exit_hooks}} = ();
+
     return $self;
 }
 
@@ -857,24 +777,33 @@ sub process_a_cmd
     $self->{completeline} = "";
     my $OUT = $self->{'OUT'};
 
-	my $rawline = "";
-	for(;;) {
-		my $prompt = $self->prompt();
-		$prompt = $prompt->[length $rawline ? 1 : 0] if ref $prompt eq 'ARRAY';
-		$prompt = $prompt->($self, $rawline) if ref $prompt eq 'CODE';
-		my $newline = $self->{term}->readline($prompt);
+    my $rawline = "";
+    INPUT_LOOP: for(;;) {
+        my $prompt = $self->prompt();
+        $prompt = $prompt->[length $rawline ? 1 : 0] if ref $prompt eq 'ARRAY';
+        $prompt = $prompt->($self, $rawline) if ref $prompt eq 'CODE';
+        my $newline = $self->{term}->readline($prompt);
 
-		# EOF exits
-		unless(defined $newline) {
-			print $OUT "\n";
-			$self->exit_requested(1);
-			return undef;
-		}
+        # EOF exits
+        unless(defined $newline) {
+            # If we have eof_exit_hooks let them have a say
+            if(scalar(@{$self->{eof_exit_hooks}})) {
+                foreach my $sub (@{$self->{eof_exit_hooks}}) {
+                    if(&$sub()) {
+                        next INPUT_LOOP;
+                    }
+                }
+            }
 
-		my $continued = ($newline =~ s/\\$//);
-		$rawline .= (length $rawline ? " " : "") . $newline;
-		last unless $self->{backslash_continues_command} && $continued;
-	} 
+            print $OUT "\n";
+            $self->exit_requested(1);
+            return undef;
+        }
+
+        my $continued = ($newline =~ s/\\$//);
+        $rawline .= (length $rawline ? " " : "") . $newline;
+        last unless $self->{backslash_continues_command} && $continued;
+    }
 
     # is it a blank line?
     if($rawline =~ /^\s*$/) {
@@ -884,40 +813,11 @@ sub process_a_cmd
 
     my $tokens;
     my $expcode = 0;
-    if($rawline =~ /^\s*[!^]/ && !$self->{disable_history_expansion}) {
-        # check to see if this exact command is in the history.
-        # if so, user used history completion to enter it and therefore we
-        # won't subject it to history substitution.
-        my $match;
-        if($self->{term}->can('GetHistory')) {
-            my @history = $self->{term}->GetHistory();
-            # reformat line as it will appear in history
-            ($tokens) = $self->{parser}->parse_line(substr($rawline,1), messages=>1);
-            if($tokens) {
-                my $rawl = $self->{parser}->join_line($tokens);
-                $match = grep { $_ eq $rawl } @history;
-            }
-        }
-
-        if(!$match) {
-            $tokens = undef;    # need to re-parse the expanded line
-            # otherwise, we subject the line to history expansion
-            # $self->{term}->can('history_expand') returns false???
-            # it's probably autoloaded dammit -- dunno what to do about that.
-            ($expcode, $rawline) = $self->{term}->history_expand($rawline);
-            if($expcode == -1) {
-                $self->error($rawline."\n");
-                return undef;
-            }
-        }
-    }
-
     my $retval = undef;
     my $str = $rawline;
-	my $save_to_history = 1;
+    my $save_to_history = 1;
 
-    # parse the line unless it was already parsed as part of history expansion
-    ($tokens) = $self->{parser}->parse_line($rawline, messages=>1) unless $tokens;
+    ($tokens) = $self->{parser}->parse_line($rawline, messages=>1);
 
     if(defined $tokens) {
         $str = $self->{parser}->join_line($tokens);
@@ -941,16 +841,16 @@ sub process_a_cmd
 
             $retval = $self->call_command($parms);
 
-			if(exists $cmd->{exclude_from_history}) {
-				$save_to_history = 0;
-			}
+            if(exists $cmd->{exclude_from_history}) {
+                $save_to_history = 0;
+            }
         }
     }
 
     # Add to history unless it's a dupe of the previous command.
-	if($save_to_history && $str ne $self->{prevcmd}) {
-		$self->{term}->addhistory($str);
-	}
+    if($save_to_history && $str ne $self->{prevcmd}) {
+        $self->{term}->addhistory($str);
+    }
     $self->{prevcmd} = $str;
 
     return $retval;
@@ -1047,6 +947,30 @@ Returns the old state of the flag.
 
 sub exit_requested { return shift->getset('done', shift); }
 
+=item add_eof_exit_hook(subroutine_reference)
+
+Call this method to add a subroutine as a hook into Term::ShellUI's
+"exit on EOF" (Ctrl-D) functionality. When a user enters Ctrl-D,
+Term::ShellUI will call each function in this hook list, in order,
+and will exit only if all of them return 0. The first function to
+return a non-zero value will stop further processing of these hooks
+and prevent the program from exiting.
+
+The return value of this method is the placement of the hook routine
+in the hook list (1 is first) or 0 (zero) on failure.
+
+=cut
+
+sub add_eof_exit_hook {
+    my $self = shift @_;
+    my $refcode = shift @_;
+    if(ref($refcode) eq 'CODE') {
+        push(@{$self->{eof_exit_hooks}}, $refcode);
+        return scalar @{$self->{eof_exit_hooks}};
+    }
+    return 0;
+}
+
 =item get_cname(cname)
 
 This is a tiny utility function that turns the cname (array ref
@@ -1064,12 +988,14 @@ sub get_cname
     return join(" ", @$cname);
 }
 
-
+=back
 
 =head1 OVERRIDES
 
 These are routines that probably already do the right thing.
 If not, however, they are designed to be overridden.
+
+=over
 
 =item blank_line()
 
@@ -1112,7 +1038,7 @@ sub error
     print STDERR @_;
 }
 
-
+=back
 
 =head1 WRITING A COMPLETION ROUTINE
 
@@ -1190,7 +1116,7 @@ The index of the token containing the cursor.
 
 The character offset of the cursor in the token.
 
-For instance, if the cursor is on the first character of the 
+For instance, if the cursor is on the first character of the
 third token, tokno will be 2 and tokoff will be 0.
 
 =item twice
@@ -1216,6 +1142,8 @@ The character position of the cursor in rawline.
 The following are utility routines that your completion function
 can call.
 
+=over
+
 =item completemsg(msg)
 
 your completion routine should call this to display text onscreen
@@ -1232,11 +1160,9 @@ sub completemsg
     my $self = shift;
     my $msg = shift;
 
-    if($self->{term}->can('rl_on_new_line')) {
-        my $OUT = $self->{OUT};
-        print $OUT $msg;
-        $self->{term}->rl_on_new_line();
-    }
+    my $OUT = $self->{OUT};
+    print $OUT $msg;
+    $self->{term}->rl_on_new_line();
 }
 
 
@@ -1327,11 +1253,15 @@ sub force_to_string
     return $results;
 }
 
+=back
+
 =head1 INTERNALS
 
 These commands are internal to ShellUI.
 They are documented here only for completeness -- you
 should never need to call them.
+
+=over
 
 =item get_deep_command
 
@@ -1400,11 +1330,11 @@ sub get_deep_command
 
     # loop through all synonyms to find the actual command
     while(exists($cset->{$name}) && (
-		exists($cset->{$name}->{'alias'}) ||
-		exists($cset->{$name}->{'syn'})
-	)) {
+        exists($cset->{$name}->{'alias'}) ||
+        exists($cset->{$name}->{'syn'})
+    )) {
         $name = $cset->{$name}->{'alias'} ||
-				$cset->{$name}->{'syn'};
+                $cset->{$name}->{'syn'};
     }
 
     my $cmd = $cset->{$name};
@@ -1601,7 +1531,7 @@ sub completion_function
     if($self->{debug_complete} >= 1) {
         print "\ntext='$text', line='$line', start=$start, cursor=$cursor";
 
-        print "\ntokens=(", join(", ", @$tokens), ") tokno=" . 
+        print "\ntokens=(", join(", ", @$tokens), ") tokno=" .
             (defined($tokno) ? $tokno : 'undef') . " tokoff=" .
             (defined($tokoff) ? $tokoff : 'undef');
 
@@ -1618,10 +1548,8 @@ sub completion_function
             $str .= "   ", print ", <" if $i != $#$tokens;
             $i += 1;
         }
-        if($self->{term}->can('rl_on_new_line')) {
-            print "\n$str\n";
-            $self->{term}->rl_on_new_line();
-        }
+        print "\n$str\n";
+        $self->{term}->rl_on_new_line();
     }
 
     my $str = $text;
@@ -1659,10 +1587,10 @@ sub completion_function
 
     my $retval = $self->complete($cmpl);
     $retval = [] unless defined($retval);
-	unless(ref($retval) eq 'ARRAY') {
-		$self->completemsg("$retval\n") if $cmpl->{twice};
-		$retval = [];
-	}
+    unless(ref($retval) eq 'ARRAY') {
+        $self->completemsg("$retval\n") if $cmpl->{twice};
+        $retval = [];
+    }
 
     if($self->{debug_complete} >= 2) {
         print "returning (", join(", ", @$retval), ")\n";
@@ -1887,13 +1815,13 @@ sub save_history
 
     if(open HIST, '>'.$self->{history_file}) {
         local $, = "\n";
-		my @list = $self->{term}->GetHistory();
-		if(@list) {
-			my $max = $#list;
-			$max = $self->{history_max}-1 if $self->{history_max}-1 < $max;
-			print HIST @list[$#list-$max..$#list];
-			print HIST "\n";
-		}
+        my @list = $self->{term}->GetHistory();
+        if(@list) {
+            my $max = $#list;
+            $max = $self->{history_max}-1 if $self->{history_max}-1 < $max;
+            print HIST @list[$#list-$max..$#list];
+            print HIST "\n";
+        }
         close HIST;
     } else {
         $self->error("Could not open ".$self->{history_file}." for writing $!\n");
@@ -1906,7 +1834,7 @@ Executes a command and returns the result.  It takes a single
 argument: the parms data structure.
 
 parms is a subset of the cmpl data structure (see the L<complete/complete(cmpl)>
-routine for more).  Briefly, it contains: 
+routine for more).  Briefly, it contains:
 cset, cmd, cname, args (see L</get_deep_command>),
 tokens and rawline (the tokenized and untokenized command lines).
 See L<complete|/complete(cmpl)> for full descriptions of these fields.
@@ -1931,7 +1859,7 @@ sub call_cmd
 
     my $retval = undef;
     if(exists $cmd->{meth} || exists $cmd->{method}) {
-		my $meth = $cmd->{meth} || $cmd->{method};
+        my $meth = $cmd->{meth} || $cmd->{method};
         # if meth is a code ref, call it, else it's a string, print it.
         if(ref($meth) eq 'CODE') {
             $retval = eval { &$meth($self, $parms, @{$parms->{args}}) };
@@ -1953,7 +1881,7 @@ sub call_cmd
             print $OUT $self->get_all_cmd_summaries($cmd->{cmds});
         } else {
             $self->error("The ". $self->get_cname($parms->{cname}) .
-				" command has no proc or method to call!\n");
+                " command has no proc or method to call!\n");
         }
     }
 
@@ -1971,7 +1899,7 @@ sub call_command
             (exists($parms->{cset}->{''}->{proc}) ||
              exists($parms->{cset}->{''}->{meth}) ||
              exists($parms->{cset}->{''}->{method})
-			)
+            )
         ) {
             # default command exists and is callable
             my $save = $parms->{cmd};
@@ -2003,22 +1931,16 @@ sub call_command
 
 =back
 
-=head1 BUGS
-
-History expansion does not respect token_chars.  To make it do
-so would require either adding this feature to the readline
-library or re-writing history_expand in Perl -- neither of which
-sounds very realistic.
-
 =head1 LICENSE
 
-Copyright (c) 2003-2006 Scott Bronson, all rights reserved. 
-This program is free software; you can redistribute it and/or modify 
-it under the same terms as Perl itself.  
+Copyright (c) 2003-2006 Scott Bronson, all rights reserved.
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Scott Bronson E<lt>bronson@rinspin.comE<gt>
+Lester Hightower E<lt>hightowe@cpan.orgE<gt>
 
 =cut
 
