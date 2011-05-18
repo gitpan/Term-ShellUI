@@ -2,7 +2,7 @@
 
 # This was originally the example code from Term::ShellUI's documentation
 # but it grew too big.  Now it's intended to demonstrate most of the
-# available features and yet still be easy to read.
+# available features and still be easy to read.
 
 use strict;
 use lib '../lib';
@@ -15,7 +15,7 @@ my $term = new Term::ShellUI(
 	);
 $term->add_eof_exit_hook(sub {print "Type 'quit' to quit.\n"; return 1;});
 print 'Using '.$term->{term}->ReadLine."\n";
-$term->run();
+$term->run(@ARGV);
 
 
 sub get_commands

@@ -13,7 +13,7 @@ use Term::ReadLine ();
 use Text::Shellwords::Cursor;
 
 use vars qw($VERSION);
-$VERSION = '0.9';
+$VERSION = '0.91';
 
 
 =head1 NAME
@@ -763,46 +763,50 @@ sub new
 }
 
 
-=item process_a_cmd()
+=item process_a_cmd([cmd])
 
-Prompts for and returns the results from a single command.
-Returns undef if no command was called.
+Runs the specified command or prompts for it if no arguments are supplied.
+Returns the result or undef if no command was called.
 
 =cut
 
 sub process_a_cmd
 {
-    my $self = shift;
+    my ($self, $incmd) = @_;
 
     $self->{completeline} = "";
     my $OUT = $self->{'OUT'};
 
     my $rawline = "";
-    INPUT_LOOP: for(;;) {
-        my $prompt = $self->prompt();
-        $prompt = $prompt->[length $rawline ? 1 : 0] if ref $prompt eq 'ARRAY';
-        $prompt = $prompt->($self, $rawline) if ref $prompt eq 'CODE';
-        my $newline = $self->{term}->readline($prompt);
+    if($incmd) {
+        $rawline = $incmd;
+    } else {
+        INPUT_LOOP: for(;;) {
+            my $prompt = $self->prompt();
+            $prompt = $prompt->[length $rawline ? 1 : 0] if ref $prompt eq 'ARRAY';
+            $prompt = $prompt->($self, $rawline) if ref $prompt eq 'CODE';
+            my $newline = $self->{term}->readline($prompt);
 
-        # EOF exits
-        unless(defined $newline) {
-            # If we have eof_exit_hooks let them have a say
-            if(scalar(@{$self->{eof_exit_hooks}})) {
-                foreach my $sub (@{$self->{eof_exit_hooks}}) {
-                    if(&$sub()) {
-                        next INPUT_LOOP;
+            # EOF exits
+            unless(defined $newline) {
+                # If we have eof_exit_hooks let them have a say
+                if(scalar(@{$self->{eof_exit_hooks}})) {
+                    foreach my $sub (@{$self->{eof_exit_hooks}}) {
+                        if(&$sub()) {
+                            next INPUT_LOOP;
+                        }
                     }
                 }
+
+                print $OUT "\n";
+                $self->exit_requested(1);
+                return undef;
             }
 
-            print $OUT "\n";
-            $self->exit_requested(1);
-            return undef;
+            my $continued = ($newline =~ s/\\$//);
+            $rawline .= (length $rawline ? " " : "") . $newline;
+            last unless $self->{backslash_continues_command} && $continued;
         }
-
-        my $continued = ($newline =~ s/\\$//);
-        $rawline .= (length $rawline ? " " : "") . $newline;
-        last unless $self->{backslash_continues_command} && $continued;
     }
 
     # is it a blank line?
@@ -862,16 +866,35 @@ sub process_a_cmd
 The main loop.  Processes all commands until someone calls
 C<L</"exit_requested(exitflag)"|exit_requested>(true)>.
 
+If you pass arguments, they are joined and run once.  For
+instance, $term->run(@ARGV) allows your program to be run
+interactively or noninteractively:
+
+=over
+
+=item myshell help
+
+Runs the help command and exits.
+
+=item myshell
+
+Invokes an interactive Term::ShellUI.
+
+=back
+
 =cut
 
 sub run
 {
     my $self = shift;
+    my $incmd = join " ", @_;
 
     $self->load_history();
+    $self->getset('done', 0);
 
     while(!$self->{done}) {
-        $self->process_a_cmd();
+        $self->process_a_cmd($incmd);
+        last if $incmd;  # only loop if we're prompting for commands
     }
 
     $self->save_history();
@@ -1146,12 +1169,17 @@ can call.
 
 =item completemsg(msg)
 
-your completion routine should call this to display text onscreen
-so that the command line being completed doesn't get messed up.
-If your completion routine prints text without calling completemsg,
-the cursor will no longer be displayed in the correct position.
+Allows your completion routine to print to the screen while completing
+(i.e. to offer suggestions or print debugging info -- see debug_complete).
+If it just blindly calls print, the prompt will be corrupted and things
+will be confusing until the user redraws the screen (probably by hitting
+Control-L).
 
     $self->completemsg("You cannot complete here!\n");
+
+Note that Term::ReadLine::Perl doesn't support this so the user will always
+have to hit Control-L after printing.  If your completion routine returns
+a string rather than calling completemsg() then it should work everywhere.
 
 =cut
 
@@ -1162,7 +1190,13 @@ sub completemsg
 
     my $OUT = $self->{OUT};
     print $OUT $msg;
-    $self->{term}->rl_on_new_line();
+
+    # Now we need to tell the readline library to redraw the entire
+    # command line.  Term::ReadLine::Gnu offers rl_on_new_line() but,
+    # because it's XS, it can't be detected using can().
+    # So, we just eval it and ignore any errors.  If it doesn't exist
+    # then the prompt is corrupted.  Oh well, best we can do!
+    eval { $self->{term}->rl_on_new_line() };
 }
 
 
@@ -1548,8 +1582,7 @@ sub completion_function
             $str .= "   ", print ", <" if $i != $#$tokens;
             $i += 1;
         }
-        print "\n$str\n";
-        $self->{term}->rl_on_new_line();
+        $self->completemsg("\n$str\n");
     }
 
     my $str = $text;
@@ -1933,14 +1966,15 @@ sub call_command
 
 =head1 LICENSE
 
-Copyright (c) 2003-2006 Scott Bronson, all rights reserved.
-This program is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+Copyright (c) 2003-2011 Scott Bronson, all rights reserved.
+This program is free software released under the MIT license.
 
 =head1 AUTHORS
 
 Scott Bronson E<lt>bronson@rinspin.comE<gt>
 Lester Hightower E<lt>hightowe@cpan.orgE<gt>
+Ryan Gies E<lt>ryan@livesite.netE<gt>
+Martin Kluge E<lt>mk@elxsi.deE<gt>
 
 =cut
 
